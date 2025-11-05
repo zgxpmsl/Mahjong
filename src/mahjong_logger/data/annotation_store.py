@@ -5,7 +5,11 @@ from dataclasses import dataclass, field, asdict
 from pathlib import Path
 from typing import Dict, List, Optional
 
+from ..config import DEFAULT_TILE_CLASSES
 from .log_schema import RoundLog
+
+
+LABEL_TO_CLASS_ID: Dict[str, int] = {name: index for index, name in enumerate(DEFAULT_TILE_CLASSES)}
 
 
 @dataclass
@@ -107,5 +111,8 @@ class AnnotationSession:
             label_path = target_dir / f"{frame_index:06d}.txt"
             with label_path.open("w", encoding="utf-8") as handle:
                 for box in frame.boxes:
+                    if box.label not in LABEL_TO_CLASS_ID:
+                        raise ValueError(f"Unknown label '{box.label}' encountered during export")
+                    class_id = LABEL_TO_CLASS_ID[box.label]
                     yolo_data = box.as_yolo(self.image_width, self.image_height)
-                    handle.write(f"{box.label} {' '.join(f'{value:.6f}' for value in yolo_data)}\n")
+                    handle.write(f"{class_id} {' '.join(f'{value:.6f}' for value in yolo_data)}\n")

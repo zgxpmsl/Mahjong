@@ -3,7 +3,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Iterable, Optional
+from typing import Dict, Iterable
+
+import cv2
 
 try:
     from ultralytics import YOLO
@@ -46,6 +48,22 @@ class Trainer:
             label_dir = labels_dir / video_name
             image_dir.mkdir(parents=True, exist_ok=True)
             label_dir.mkdir(parents=True, exist_ok=True)
+            capture = cv2.VideoCapture(str(session.video_path))
+            if not capture.isOpened():
+                raise RuntimeError(f"Unable to open video: {session.video_path}")
+            try:
+                for frame_index in sorted(session.frames.keys()):
+                    capture.set(cv2.CAP_PROP_POS_FRAMES, frame_index)
+                    success, frame = capture.read()
+                    if not success:
+                        raise RuntimeError(
+                            f"Failed to read frame {frame_index} from {session.video_path}"
+                        )
+                    image_path = image_dir / f"{frame_index:06d}.jpg"
+                    if not cv2.imwrite(str(image_path), frame):
+                        raise RuntimeError(f"Failed to write image to {image_path}")
+            finally:
+                capture.release()
             session.export_yolo_labels(label_dir)
         yaml_path = dataset_root / "dataset.yaml"
         yaml_dump(
